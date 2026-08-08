@@ -116,7 +116,13 @@ function shellTemplateManifest(buildShellCommand, buildCodexWindowsCommand) {
     'plugin/hooks/codex-hooks.json': {
       kind: 'hooks',
       commands: {
-        'SessionStart.0.0': codexHookPair(['hook', 'codex', 'context'], { startupVersionCheck: true }),
+        // BIN-253/254: Codex now uses the same dual-hook SessionStart pattern
+        // as Claude Code — a dedicated worker `start` hook (bootstrap) followed
+        // by the `context` hook (memory injection). The old version-check.js
+        // gate that suppressed memory injection after marketplace updates has
+        // been removed entirely.
+        'SessionStart.0.0': codexHookPair(['start']),
+        'SessionStart.0.1': codexHookPair(['hook', 'codex', 'context']),
         'UserPromptSubmit.0.0': codexHookPair(['hook', 'codex', 'session-init']),
         'PreToolUse.0.0': codexHookPair(['hook', 'codex', 'file-context']),
         'PostToolUse.0.0': codexHookPair(['hook', 'codex', 'observation']),

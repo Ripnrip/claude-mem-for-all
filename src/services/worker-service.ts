@@ -1158,6 +1158,19 @@ async function main() {
       if (result === 'dead') {
         exitWithStatus('error', 'Failed to start worker');
       } else {
+        // When the start hook is invoked as a standalone SessionStart hook
+        // (Codex dual-hook pattern), its stdout output must be suppressed so
+        // it doesn't pollute the model context or interfere with the
+        // following context hook. The suppressOutput flag tells the host
+        // (Claude Code / Codex) to discard this hook's output.
+        if (process.env.CLAUDE_MEM_CODEX_HOOK === '1') {
+          console.log(JSON.stringify(buildStatusOutput(
+            'ready',
+            result === 'warming' ? 'Worker started; still warming up' : undefined,
+            { includeSuppressOutput: true },
+          )));
+          process.exit(0);
+        }
         exitWithStatus('ready', result === 'warming' ? 'Worker started; still warming up' : undefined);
       }
       break;

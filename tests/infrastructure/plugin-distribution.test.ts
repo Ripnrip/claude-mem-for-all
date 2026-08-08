@@ -134,10 +134,25 @@ describe('Plugin Distribution - Codex Marketplace', () => {
     }
   });
 
-  it('ships a single Codex SessionStart command', () => {
+  it('ships a dual Codex SessionStart (worker start + context, no version-check gate)', () => {
     const codexHooks = readJson('plugin/hooks/codex-hooks.json');
-    expect(codexHooks.hooks.SessionStart[0].hooks).toHaveLength(1);
-    expect(codexHooks.hooks.SessionStart[0].hooks[0].commandWindows).toContain('version-check.js');
+    // BIN-253/254: Codex now uses the same dual-hook SessionStart pattern as
+    // Claude Code: first hook bootstraps the worker, second hook injects
+    // memory context. The old version-check.js gate that suppressed memory
+    // injection after marketplace updates has been removed entirely.
+    expect(codexHooks.hooks.SessionStart[0].hooks).toHaveLength(2);
+    // First hook must be the worker start command, NOT a context hook.
+    const startCommand = codexHooks.hooks.SessionStart[0].hooks[0].command ?? '';
+    expect(startCommand).toContain('start');
+    expect(startCommand).not.toMatch(/hook\s+codex\s+context/);
+    // Neither hook should contain the version-check gate.
+    for (const hook of codexHooks.hooks.SessionStart[0].hooks) {
+      expect(hook.command ?? '').not.toContain('version-check.js');
+      expect(hook.commandWindows ?? '').not.toContain('version-check.js');
+    }
+    // Second hook must be the real context injection.
+    const contextCommand = codexHooks.hooks.SessionStart[0].hooks[1].command ?? '';
+    expect(contextCommand).toContain('hook codex context');
   });
 
   it('MCP launcher can recover without plugin root environment variables', () => {
@@ -375,7 +390,9 @@ const RULE_A_EXPECTATIONS: Record<string, Record<string, RuleAExpectation>> = {
     'Stop.0.0': claudeHook(['hook', 'claude-code', 'summarize']),
   },
   'plugin/hooks/codex-hooks.json': {
-    'SessionStart.0.0': codexHookPair(['hook', 'codex', 'context'], { startupVersionCheck: true }),
+    // BIN-253/254: dual-hook SessionStart (worker start + context), no version-check gate
+    'SessionStart.0.0': codexHookPair(['start']),
+    'SessionStart.0.1': codexHookPair(['hook', 'codex', 'context']),
     'UserPromptSubmit.0.0': codexHookPair(['hook', 'codex', 'session-init']),
     'PreToolUse.0.0': codexHookPair(['hook', 'codex', 'file-context']),
     'PostToolUse.0.0': codexHookPair(['hook', 'codex', 'observation']),
