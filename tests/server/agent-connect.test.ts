@@ -12,14 +12,30 @@ import { normalizePlatformSource } from '../../src/shared/platform-source.js';
 
 describe('AgentConnectService', () => {
   let db: Database;
+  let savedAutoProvision: string | undefined;
+  let savedRuntime: string | undefined;
 
   beforeEach(() => {
     db = new Database(':memory:');
     db.run('PRAGMA foreign_keys = ON');
+    savedAutoProvision = process.env.CLAUDE_MEM_AUTO_PROVISION;
+    savedRuntime = process.env.CLAUDE_MEM_RUNTIME;
+    delete process.env.CLAUDE_MEM_AUTO_PROVISION;
+    delete process.env.CLAUDE_MEM_RUNTIME;
   });
 
   afterEach(() => {
     db.close();
+    if (savedAutoProvision === undefined) {
+      delete process.env.CLAUDE_MEM_AUTO_PROVISION;
+    } else {
+      process.env.CLAUDE_MEM_AUTO_PROVISION = savedAutoProvision;
+    }
+    if (savedRuntime === undefined) {
+      delete process.env.CLAUDE_MEM_RUNTIME;
+    } else {
+      process.env.CLAUDE_MEM_RUNTIME = savedRuntime;
+    }
   });
 
   describe('findOrCreateDefaultProject', () => {
@@ -147,6 +163,55 @@ describe('AgentConnectService', () => {
       expect(curls).toContain(result.projectId);
       expect(curls).toContain('/v1/memories');
       expect(curls).toContain('/v1/search');
+    });
+  });
+
+  describe('CLAUDE_MEM_AUTO_PROVISION=false', () => {
+    beforeEach(() => {
+      process.env.CLAUDE_MEM_AUTO_PROVISION = 'false';
+    });
+
+    it('throws when no project exists and auto-provision is disabled', () => {
+      expect(() => agentConnect(db, { name: 'letta' })).toThrow(/CLAUDE_MEM_AUTO_PROVISION is disabled/);
+    });
+
+    it('still works when a project already exists (uses existing)', () => {
+      // Manually create a project first
+      const repo = new ProjectsRepository(db);
+      const existing = repo.create({ name: 'Pre-existing Project' });
+
+      const result = agentConnect(db, { name: 'letta', projectName: 'Pre-existing Project' });
+      expect(result.projectId).toBe(existing.id);
+    });
+
+    it('works with --project-id pointing at an existing project', () => {
+      const repo = new ProjectsRepository(db);
+      const existing = repo.create({ name: 'Manual Project' });
+
+      const result = agentConnect(db, { name: 'letta', existingProjectId: existing.id });
+      expect(result.projectId).toBe(existing.id);
+    });
+
+    it('throws with --project-id pointing at a non-existent project', () => {
+      expect(() =>
+        agentConnect(db, { name: 'letta', existingProjectId: 'nonexistent-uuid' })
+      ).toThrow(/Project not found/);
+    });
+  });
+
+  describe('CLAUDE_MEM_RUNTIME=server guard', () => {
+    beforeEach(() => {
+      process.env.CLAUDE_MEM_RUNTIME = 'server';
+    });
+
+    it('throws when runtime=server and no apiUrl is provided', () => {
+      expect(() => agentConnect(db, { name: 'letta' })).toThrow(/CLAUDE_MEM_RUNTIME=server/);
+    });
+
+    it('works when runtime=server but apiUrl is explicitly provided', () => {
+      const result = agentConnect(db, { name: 'letta', apiUrl: 'http://my-server:37877' });
+      expect(result.apiUrl).toBe('http://my-server:37877');
+      expect(result.apiKey).toMatch(/^cmem_/);
     });
   });
 });

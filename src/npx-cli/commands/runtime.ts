@@ -136,6 +136,32 @@ export function runServerApiKeyCommand(extraArgs: string[] = []): void {
   spawnBunWorkerCommand('server', ['api-key', ...extraArgs]);
 }
 
+/**
+ * `npx claude-mem agent connect --name <agent>` — delegates to the
+ * worker-service `agent-connect` case which runs AgentConnectService.
+ */
+export function runAgentCommand(extraArgs: string[] = []): void {
+  spawnBunWorkerCommand('agent', ['connect', ...extraArgs]);
+}
+
+/**
+ * `npx claude-mem mcp` — start the stdio MCP search server. Launches the
+ * bundled `mcp-server.cjs` from the installed plugin's scripts directory.
+ */
+export function runMcpServerCommand(): void {
+  ensureInstalledOrExit();
+  const bunPath = resolveBunOrExit();
+
+  const mcpScript = join(marketplaceDirectory(), 'plugin', 'scripts', 'mcp-server.cjs');
+  if (!existsSync(mcpScript)) {
+    console.error(styleText('red', `MCP server script not found at: ${mcpScript}`));
+    console.error('The installation may be corrupted. Try: npx claude-mem install');
+    process.exit(1);
+  }
+
+  spawnPlugin(bunPath, [mcpScript]);
+}
+
 export function runAdoptCommand(extraArgs: string[] = []): void {
   ensureInstalledOrExit();
   const bunPath = resolveBunOrExit();

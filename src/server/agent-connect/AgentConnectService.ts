@@ -36,6 +36,10 @@ export interface AgentConnectInput {
   projectRootPath?: string;
   /** Override the worker port (defaults to env/UID-derived port). */
   port?: number;
+  /** Explicit API URL (overrides the derived worker URL). Use when runtime=server. */
+  apiUrl?: string;
+  /** Use an existing project ID instead of auto-provisioning. */
+  existingProjectId?: string;
 }
 
 export interface AgentConnectResult {
@@ -58,24 +62,80 @@ export interface AgentConnectResult {
 const DEFAULT_PROJECT_NAME = 'Shared Memory';
 
 /**
+ * Check whether CLAUDE_MEM_AUTO_PROVISION is enabled (default: true).
+ * When disabled, `agent connect` will NOT auto-create a project — it will
+ * require `--project-id` pointing at an existing project.
+ */
+function isAutoProvisionEnabled(): boolean {
+  const value = process.env.CLAUDE_MEM_AUTO_PROVISION;
+  if (value === undefined) return true; // default: enabled
+  const normalized = value.trim().toLowerCase();
+  if (normalized === '') return true;
+  return normalized === '1' || normalized === 'true' || normalized === 'yes';
+}
+
+/**
+ * Check whether the runtime is set to 'server' (Postgres backend) rather
+ * than the default 'worker' (SQLite backend). When runtime=server, the
+ * provisioning path opens the local SQLite worker DB — but the server
+ * runtime uses a different backend/port, so the issued key/project won't
+ * exist there.
+ */
+function isServerRuntime(): boolean {
+  const runtime = process.env.CLAUDE_MEM_RUNTIME;
+  if (runtime === undefined) return false; // default: 'worker'
+  return runtime === 'server' || runtime === 'server-beta';
+}
+
+/**
  * Find or create a default project for agent connections.
  *
  * When CLAUDE_MEM_AUTO_PROVISION is enabled (the default), a project named
  * "Shared Memory" is created on first call and reused for all subsequent
  * agent connections. This means any agent gets a working project without
  * manual setup.
+ *
+ * When disabled, this function will look for an existing project but will
+ * NOT create one — it throws if no project is found, directing the user to
+ * either enable auto-provisioning or pass --project-id.
  */
 export function findOrCreateDefaultProject(
   db: Database,
   projectName: string = DEFAULT_PROJECT_NAME,
   rootPath?: string,
+  existingProjectId?: string,
 ): { id: string; name: string } {
   const repo = new ProjectsRepository(db);
+
+  // If a specific project ID was provided, use it directly.
+  if (existingProjectId) {
+    const byId = repo.getById(existingProjectId);
+    if (byId) {
+      return { id: byId.id, name: byId.name };
+    }
+    throw new Error(
+      `Project not found: ${existingProjectId}. ` +
+      'Create it first or remove --project-id to auto-provision.'
+    );
+  }
 
   // Look for an existing project with this name.
   const existing = repo.list().find(p => p.name === projectName);
   if (existing) {
     return { id: existing.id, name: existing.name };
+  }
+
+  // No existing project found. If auto-provision is disabled, hard-fail.
+  if (!isAutoProvisionEnabled()) {
+    const availableProjects = repo.list();
+    throw new Error(
+      `No project named "${projectName}" found and CLAUDE_MEM_AUTO_PROVISION is disabled. ` +
+      (availableProjects.length > 0
+        ? `Available projects: ${availableProjects.map(p => `${p.name} (${p.id})`).join(', ')}. `
+        : 'No projects exist yet. '
+      ) +
+      'Either set CLAUDE_MEM_AUTO_PROVISION=true, or pass --project-id <existing-id> to use an existing project.'
+    );
   }
 
   // Auto-provision a new project.
@@ -97,13 +157,29 @@ export function findOrCreateDefaultProject(
  *
  * The returned connection bundle contains everything an agent needs to
  * authenticate and start reading/writing memories immediately.
+ *
+ * NOTE: This function provisions against the local SQLite worker database.
+ * When CLAUDE_MEM_RUNTIME=server, the server uses a separate Postgres
+ * backend — call `agentConnect` in worker mode or pass `apiUrl` explicitly
+ * to point at the server URL.
  */
 export function agentConnect(db: Database, input: AgentConnectInput): AgentConnectResult {
+  // Guard: if runtime=server, the local SQLite DB is the wrong backend.
+  if (isServerRuntime() && !input.apiUrl) {
+    throw new Error(
+      'CLAUDE_MEM_RUNTIME=server: agent connect provisions against the local SQLite worker DB, ' +
+      'but the server runtime uses a separate Postgres backend. Either:\n' +
+      '  1. Run with CLAUDE_MEM_RUNTIME=worker (default) to provision locally, or\n' +
+      '  2. Pass --api-url <server-url> to point at the server, or\n' +
+      '  3. Use `npx claude-mem server api-key create` against the server backend directly.'
+    );
+  }
+
   const platformSource = normalizePlatformSource(input.name);
 
   // Ensure a default project exists for this agent to write into.
   const projectName = input.projectName ?? DEFAULT_PROJECT_NAME;
-  const project = findOrCreateDefaultProject(db, projectName, input.projectRootPath);
+  const project = findOrCreateDefaultProject(db, projectName, input.projectRootPath, input.existingProjectId);
 
   // Provision an API key with full read+write scopes, scoped to the project.
   const created = createServerApiKey(db, {
@@ -112,11 +188,11 @@ export function agentConnect(db: Database, input: AgentConnectInput): AgentConne
     scopes: [...DEFAULT_LOCAL_API_KEY_SCOPES],
   });
 
-  const port = input.port ?? getWorkerPort();
+  const apiUrl = input.apiUrl ?? ('http://127.0.0.1:' + (input.port ?? getWorkerPort()));
 
   return {
     platformSource,
-    apiUrl: 'http://127.0.0.1:' + port,
+    apiUrl,
     apiKey: created.rawKey,
     apiKeyId: created.record.id,
     projectId: project.id,
@@ -128,6 +204,10 @@ export function agentConnect(db: Database, input: AgentConnectInput): AgentConne
 /**
  * Format the connection bundle as a ready-to-use MCP client config JSON.
  * This is what an agent pastes into its MCP server configuration.
+ *
+ * The MCP server runs over stdio and proxies to the local worker's HTTP API.
+ * For server-runtime deployments, the CLAUDE_MEM_SERVER_* env vars point the
+ * MCP server at the remote HTTP API instead of the local worker.
  */
 export function formatMcpConfig(result: AgentConnectResult): string {
   return JSON.stringify({
@@ -137,7 +217,8 @@ export function formatMcpConfig(result: AgentConnectResult): string {
         args: ['claude-mem', 'mcp'],
         env: {
           CLAUDE_MEM_ALLOW_ANY_AGENT: 'true',
-          CLAUDE_MEM_RUNTIME: 'server',
+          // Point the MCP server at the worker HTTP API that this key was
+          // provisioned for. The MCP server proxies tool calls there.
           CLAUDE_MEM_SERVER_URL: result.apiUrl,
           CLAUDE_MEM_SERVER_API_KEY: result.apiKey,
           CLAUDE_MEM_SERVER_PROJECT_ID: result.projectId,
