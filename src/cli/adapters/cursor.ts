@@ -52,6 +52,21 @@ export const cursorAdapter: PlatformAdapter = {
     };
   },
   formatOutput(result) {
-    return { continue: result.continue ?? true };
+    const output: Record<string, unknown> = { continue: result.continue ?? true };
+    // Pass through hookSpecificOutput (SessionStart context injection) and
+    // systemMessage so Cursor actually receives the memory observations the
+    // context handler produced. Previously these were stripped, leaving Cursor
+    // with no injected context even when the handler generated rich
+    // observations.
+    if (result.hookSpecificOutput) {
+      output.hookSpecificOutput = result.hookSpecificOutput;
+    }
+    if (result.systemMessage) {
+      output.systemMessage = result.systemMessage;
+    }
+    if (result.suppressOutput !== undefined) {
+      output.suppressOutput = result.suppressOutput;
+    }
+    return output;
   }
 };
