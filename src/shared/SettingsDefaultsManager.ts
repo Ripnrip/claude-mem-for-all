@@ -102,6 +102,7 @@ export interface SettingsDefaults {
   CLAUDE_MEM_QUEUE_REDIS_PREFIX: string;
   CLAUDE_MEM_AUTH_MODE: string;
   CLAUDE_MEM_ALLOW_ANY_AGENT: string;
+  CLAUDE_MEM_AUTO_PROVISION: string;
   CLAUDE_MEM_RUNTIME: string;
   // Phase 1a (cmem-sdk rename): canonical server settings keys. Hooks read
   // these first and fall back to the legacy `*_BETA_*` keys below.
@@ -195,6 +196,7 @@ export class SettingsDefaultsManager {
     CLAUDE_MEM_QUEUE_REDIS_PREFIX: `claude_mem_${process.env.CLAUDE_MEM_WORKER_PORT ?? String(37700 + ((process.getuid?.() ?? 77) % 100))}`,
     CLAUDE_MEM_AUTH_MODE: 'api-key',
     CLAUDE_MEM_ALLOW_ANY_AGENT: 'true',  // Universal shared memory: preserve each connecting agent's own identity (platform_source) instead of collapsing unknown agents to 'claude'. Set to 'false' for legacy Claude-only attribution. Authentication is unaffected — API keys are still required.
+    CLAUDE_MEM_AUTO_PROVISION: 'true',  // When enabled, agent:connect auto-creates a default project + API key for any agent in one command, so any agent can self-bootstrap as a server peer without manual provisioning steps.
     CLAUDE_MEM_RUNTIME: 'worker',
     // Phase 1a (cmem-sdk rename): canonical server settings keys. Hooks read
     // these first; the legacy `*_BETA_*` defaults below remain so existing

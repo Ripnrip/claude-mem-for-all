@@ -100,7 +100,43 @@ only changes how an authenticated caller's identity is recorded — it never
 removes the API-key requirement.
 </Warning>
 
-### Provisioning a key
+## One-command bootstrap: `agent connect`
+
+The fastest way for **any** agent to become a full read/write peer is the
+`agent connect` wrapper. It auto-provisions a default project + API key and
+outputs a ready-to-use connection bundle — no manual project or key creation
+required.
+
+```bash
+# Bootstrap "letta" as a full read/write peer
+npx claude-mem agent connect --name letta
+
+# Output: JSON connection bundle with apiUrl, apiKey, projectId, platformSource
+
+# Get an MCP client config instead of raw JSON
+npx claude-mem agent connect --name hermes --format mcp
+
+# Get curl examples for quick testing
+npx claude-mem agent connect --name multica-squad-3 --format curl
+
+# Use a custom project name
+npx claude-mem agent connect --name letta --project "Mission Control"
+```
+
+The wrapper:
+
+1. **Creates or reuses** a default project ("Shared Memory" unless `--project`
+   is given) so any agent has a working project from the first call.
+2. **Provisions an API key** with `memories:read` + `memories:write` scopes,
+   scoped to that project, via the same scrypt-hashed path as any other key.
+3. **Outputs a connection bundle** with everything the agent needs: URL, key,
+   project ID, and platform_source identity.
+
+The `CLAUDE_MEM_AUTO_PROVISION` flag (default `true`) controls whether the
+wrapper auto-creates the default project. When disabled, `agent connect`
+requires an existing project ID.
+
+### Provisioning a key manually
 
 Use the CLI to create a key (defaults to the `memories:read` + `memories:write`
 scopes so it works against the routes the local runtime mounts):

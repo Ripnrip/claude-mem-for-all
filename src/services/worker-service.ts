@@ -67,6 +67,11 @@ import {
   migrateServerApiKeyScopes,
   DEFAULT_LOCAL_API_KEY_SCOPES,
 } from '../server/auth/sqlite-api-key-service.js';
+import {
+  agentConnect,
+  formatMcpConfig,
+  formatCurlExamples,
+} from '../server/agent-connect/AgentConnectService.js';
 import { ServerV1Routes } from '../server/routes/v1/ServerV1Routes.js';
 
 import {
@@ -886,6 +891,10 @@ export function parseWorkerServiceCommand(argv: string[]): ParsedWorkerCommand {
     };
   }
 
+  if (rawCommand === 'agent' && maybeSubCommand === 'connect') {
+    return { command: 'agent-connect', args: rest };
+  }
+
   if (rawCommand === 'worker') {
     const workerAliases = new Set(['start', 'stop', 'restart', 'status']);
     return {
@@ -903,6 +912,9 @@ export function parseWorkerServiceCommand(argv: string[]): ParsedWorkerCommand {
 function printServerCommandHelp(): never {
   console.error('Usage: worker-service server <command>');
   console.error('Commands: start, stop, restart, status, api-key create|list|revoke');
+  console.error('');
+  console.error('Universal agent access:');
+  console.error('  agent connect --name <agent-name>    Bootstrap any agent as a full read/write peer');
   process.exit(1);
 }
 
@@ -1055,6 +1067,67 @@ function runServerApiKeyCli(args: string[]): never {
 
     console.error(`Unknown server api-key subcommand: ${subCommand ?? '(none)'}`);
     console.error('Usage: worker-service server api-key create|list|revoke|migrate-scopes');
+    process.exit(1);
+  } finally {
+    db.close();
+  }
+}
+
+function runAgentConnectCli(args: string[]): never {
+  const options = parseServerApiKeyOptions(args);
+
+  const name = options.name;
+  if (!name) {
+    console.error('Usage: worker-service agent connect --name <agent-name> [options]');
+    console.error('');
+    console.error('Bootstrap any agent as a full read/write peer on the shared memory backend.');
+    console.error('Creates a default project + API key and outputs a ready-to-use connection bundle.');
+    console.error('');
+    console.error('Options:');
+    console.error('  --name <agent>         Agent name (required)');
+    console.error('  --project <name>       Project name (default: "Shared Memory")');
+    console.error('  --project-id <id>      Use an existing project ID instead of auto-creating');
+    console.error('  --project-root <path>  Project root path');
+    console.error('  --port <port>          Worker port override');
+    console.error('  --api-url <url>        Explicit API URL (for server runtime)');
+    console.error('  --format <fmt>         Output format: json (default), mcp, curl');
+    process.exit(1);
+  }
+
+  const db = openServerCommandDatabase();
+  try {
+    const result = agentConnect(db, {
+      name,
+      projectName: options.project,
+      projectRootPath: options['project-root'],
+      port: options.port ? parseInt(options.port, 10) : undefined,
+      apiUrl: options['api-url'],
+      existingProjectId: options['project-id'],
+    });
+
+    const outputFormat = options.format ?? options.output ?? 'json';
+
+    if (outputFormat === 'mcp') {
+      console.log(formatMcpConfig(result));
+    } else if (outputFormat === 'curl') {
+      console.log(formatCurlExamples(result));
+    } else {
+      // Default: JSON connection bundle
+      console.log(JSON.stringify({
+        platformSource: result.platformSource,
+        apiUrl: result.apiUrl,
+        apiKey: result.apiKey,
+        apiKeyId: result.apiKeyId,
+        projectId: result.projectId,
+        projectName: result.projectName,
+        scopes: result.scopes,
+        note: 'Store the apiKey securely — it grants full read+write access to the shared memory backend.',
+      }, null, 2));
+    }
+
+    process.exit(0);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);
   } finally {
     db.close();
@@ -1272,6 +1345,11 @@ async function main() {
       console.error(`Unknown server api-key subcommand: ${apiKeyCommand ?? '(none)'}`);
       console.error('Usage: worker-service server api-key create|list|revoke|migrate-scopes');
       process.exit(1);
+      break;
+    }
+
+    case 'agent-connect': {
+      runAgentConnectCli(commandArgs);
       break;
     }
 

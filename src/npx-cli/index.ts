@@ -46,6 +46,8 @@ ${styleText('bold', 'Runtime Commands')} (requires Bun, delegates to installed p
   ${styleText('cyan', 'npx claude-mem server restart')}       Restart server service
   ${styleText('cyan', 'npx claude-mem server status')}        Show server status
   ${styleText('cyan', 'npx claude-mem server api-key create|list|revoke')}   Manage API keys
+  ${styleText('cyan', 'npx claude-mem agent connect --name <agent>')}   Bootstrap any agent as a full read/write peer (universal shared memory)
+  ${styleText('cyan', 'npx claude-mem mcp')}                    Start the stdio MCP search server
   ${styleText('cyan', 'npx claude-mem worker start|stop|restart|status')}    Worker compatibility aliases
   ${styleText('cyan', 'npx claude-mem search <query>')}       Search observations
   ${styleText('cyan', 'npx claude-mem adopt [--dry-run] [--branch <name>]')}    Stamp merged worktrees into parent project
@@ -177,6 +179,18 @@ async function main(): Promise<void> {
     case 'server': {
       const { runServerCommand } = await import('./commands/server.js');
       await runServerCommand(args.slice(1));
+      break;
+    }
+
+    case 'agent': {
+      const { runAgentCommand } = await import('./commands/runtime.js');
+      runAgentCommand(args.slice(1));
+      break;
+    }
+
+    case 'mcp': {
+      const { runMcpServerCommand } = await import('./commands/runtime.js');
+      runMcpServerCommand();
       break;
     }
 
