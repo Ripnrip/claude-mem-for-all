@@ -94,6 +94,7 @@
         "icon": "cloud",
         "pages": [
           "hosted-server",
+          "universal-memory",
           "cloud-sync"
         ]
       },

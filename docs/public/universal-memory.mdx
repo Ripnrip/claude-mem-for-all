@@ -1,0 +1,195 @@
+---
+title: "Universal Shared Memory"
+description: "Use claude-mem as a shared read/write memory backend for ANY MCP/HTTP-compatible agent — Letta, Hermes, Multica squads, Codex, Cursor, or your own — with authentication always required."
+icon: "network-wired"
+---
+
+<Note>
+**What this is:** claude-mem's memory is not Claude-only. Any agent that can
+speak MCP over stdio or make authenticated HTTP requests can read from and write
+to the same memory store as a full peer. Every connecting agent keeps its own
+identity, so memories are attributed to the agent that created them instead of
+all appearing as `claude`.
+</Note>
+
+## Overview
+
+claude-mem stores memory in a local SQLite database (`~/.claude-mem/claude-mem.db`)
+and exposes it over a small set of connection surfaces. Historically the
+identity of every non-Claude caller was collapsed to `claude`. With the
+`CLAUDE_MEM_ALLOW_ANY_AGENT` flag (enabled by default in this fork), each
+agent's supplied identity is preserved as its `platform_source`, so memory can
+be attributed and scoped per agent.
+
+Authentication is unchanged and is **always required** for the server-runtime
+REST API — nothing here bypasses or weakens the API-key check.
+
+## Connection surfaces
+
+There are three ways an agent connects, depending on how it is deployed.
+
+<CardGroup cols={3}>
+  <Card title="stdio MCP (worker mode)" icon="terminal">
+    An MCP server over stdio that proxies to the local worker's HTTP API on
+    `127.0.0.1`. Best for MCP-native agents on the same machine.
+  </Card>
+  <Card title="/v1 REST API (server mode)" icon="plug">
+    The server-runtime HTTP API — `memories`, `events`, `search`, `context` —
+    gated by API-key scopes. Best for remote or non-MCP agents.
+  </Card>
+  <Card title="Read-only recall MCP" icon="book-open">
+    MCP recall tools for retrieval-only agents that should read memory but never
+    write to it.
+  </Card>
+</CardGroup>
+
+### (a) stdio MCP server → local worker HTTP API
+
+The MCP server (`src/servers/mcp-server.ts`) runs over
+`StdioServerTransport` and forwards tool calls to the local claude-mem worker's
+HTTP API on `127.0.0.1` (default port `37700 + uid % 100`, or
+`CLAUDE_MEM_WORKER_PORT`). It exposes tools such as `search`, `timeline`, and
+`get_observations` backed by the worker. This is the lowest-friction path for an
+MCP-native agent running on the same host as the worker.
+
+### (b) Server-runtime `/v1` REST API
+
+When claude-mem runs in server runtime (`CLAUDE_MEM_RUNTIME=server`), it mounts
+an authenticated HTTP API (`src/server/routes/v1/ServerV1Routes.ts`). The core
+memory endpoints are:
+
+| Method & path            | Required scope    | Purpose                                  |
+| ------------------------ | ----------------- | ---------------------------------------- |
+| `POST /v1/memories`      | `memories:write`  | Create a memory item                     |
+| `GET /v1/memories/:id`   | `memories:read`   | Read a memory item                       |
+| `PATCH /v1/memories/:id` | `memories:write`  | Update a memory item                     |
+| `POST /v1/events`        | `memories:write`  | Record an agent event                    |
+| `POST /v1/events/batch`  | `memories:write`  | Record up to 500 agent events at once    |
+| `GET /v1/events/:id`     | `memories:read`   | Read an agent event                      |
+| `POST /v1/search`        | `memories:read`   | Search memory                            |
+| `POST /v1/context`       | `memories:read`   | Build injectable context                 |
+
+Reads require the `memories:read` scope; writes require `memories:write`. The
+`GET /healthz` and `GET /v1/info` endpoints are unauthenticated metadata only.
+
+### (c) Read-only recall MCP
+
+For agents that must retrieve but never mutate memory, provision an API key
+scoped to `memories:read` only. Combined with the recall/search MCP tools this
+gives a strict read-only peer — it can query memory but any write route returns
+`403 Forbidden` for an insufficient scope.
+
+## Authentication (required, never bypassed)
+
+Every `/v1` request must present a claude-mem API key, either as:
+
+- `Authorization: Bearer <key>`, or
+- `X-Api-Key: <key>`
+
+The key is verified against the SQLite-backed auth store
+(`src/server/auth/sqlite-api-key-service.ts`) via the `requireServerAuth`
+middleware (`src/server/middleware/auth.ts`). A request with no key returns
+`401 Unauthorized`; a key that lacks the required scope returns
+`403 Forbidden`. Keys carry `memories:read` and/or `memories:write` scopes (a
+`*` wildcard grants all scopes and is an explicit opt-in for privileged
+operations).
+
+<Warning>
+Universal access does **not** mean anonymous access. `CLAUDE_MEM_ALLOW_ANY_AGENT`
+only changes how an authenticated caller's identity is recorded — it never
+removes the API-key requirement.
+</Warning>
+
+### Provisioning a key
+
+Use the CLI to create a key (defaults to the `memories:read` + `memories:write`
+scopes so it works against the routes the local runtime mounts):
+
+```bash
+# Full read+write memory key (default scopes)
+npx claude-mem server api-key create --name "letta-agent"
+
+# Read-only recall key
+npx claude-mem server api-key create --name "recall-bot" --scope memories:read
+
+# List / revoke
+npx claude-mem server api-key create --name "..." --scope memories:read,memories:write
+npx claude-mem server api-key list
+npx claude-mem server api-key revoke <id>
+```
+
+`create` prints the raw key once as JSON — store it securely, it is not
+recoverable later. Programmatically, the same path is
+`createServerApiKey(db, { name, scopes })` in
+`src/server/auth/sqlite-api-key-service.ts`, backed by `AuthRepository`.
+
+## The `CLAUDE_MEM_ALLOW_ANY_AGENT` flag
+
+| | |
+| --- | --- |
+| **Default** | `true` (enabled) |
+| **What it does** | Preserves each connecting agent's own identity as its `platform_source` (sanitized to a lowercase hyphen-slug) instead of collapsing unknown agents to `claude`. Memories can then be attributed and scoped per agent. |
+| **When disabled (`false`)** | Legacy behavior: any identity that is not a known alias (`claude` / `codex` / `cursor`) is recorded as `claude`. |
+
+Known aliases (`claude`, `codex`, `cursor`) are always normalized the same way
+regardless of the flag; empty or missing identities always fall back to
+`claude`.
+
+Set it like any other `CLAUDE_MEM_*` setting — via environment variable or
+`~/.claude-mem/settings.json`:
+
+```bash
+# Environment variable
+export CLAUDE_MEM_ALLOW_ANY_AGENT=true
+```
+
+```json
+// ~/.claude-mem/settings.json
+{
+  "CLAUDE_MEM_ALLOW_ANY_AGENT": "true"
+}
+```
+
+## Example: an agent connecting
+
+### Via the `/v1` REST API (curl)
+
+```bash
+# Write a memory as the "letta" agent
+curl -X POST http://127.0.0.1:37877/v1/memories \
+  -H "Authorization: Bearer $CLAUDE_MEM_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+        "title": "User prefers dark mode",
+        "text": "Confirmed in onboarding chat.",
+        "platformSource": "letta"
+      }'
+
+# Search memory (read scope)
+curl -X POST http://127.0.0.1:37877/v1/search \
+  -H "Authorization: Bearer $CLAUDE_MEM_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "query": "dark mode preference" }'
+```
+
+With `CLAUDE_MEM_ALLOW_ANY_AGENT=true`, the memory above is stored with
+`platform_source=letta` rather than `claude`.
+
+### Via an MCP client config (stdio)
+
+```json
+{
+  "mcpServers": {
+    "claude-mem": {
+      "command": "npx",
+      "args": ["claude-mem", "mcp"],
+      "env": {
+        "CLAUDE_MEM_ALLOW_ANY_AGENT": "true"
+      }
+    }
+  }
+}
+```
+
+The stdio MCP server proxies to the local worker on `127.0.0.1`; any MCP-capable
+agent (not just Claude) can point at it and share the same memory store.
