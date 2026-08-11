@@ -80,6 +80,7 @@ describe('Plugin Distribution - Required Files', () => {
     'plugin/.claude-plugin/plugin.json',
     'plugin/.codex-plugin/plugin.json',
     'plugin/.mcp.json',
+    'plugin/scripts/claude-mem-hook-launcher.swift',
     'plugin/sqlite/SessionStore.js',
     'plugin/sqlite/observations/files.js',
     'plugin/skills/mem-search/SKILL.md',
@@ -343,14 +344,24 @@ describe('Plugin Distribution - Non-blocking bookkeeping hooks (#3206)', () => {
 const ccTrailing = (...tail: string[]) => [
   'node', '"$_P/scripts/bun-runner.js"', '"$_P/scripts/worker-service.cjs"', ...tail,
 ];
+const swiftDispatch = (tail: string[], options: { codexHook?: boolean } = {}) => {
+  const codexFlag = options.codexHook ? ['--codex-hook'] : [];
+  const fallbackPrefix = options.codexHook ? ['CLAUDE_MEM_CODEX_HOOK=1'] : [];
+  return [
+    'if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && command -v swift >/dev/null 2>&1 && [ -f "$_P/scripts/claude-mem-hook-launcher.swift" ]; then',
+    '"$_P/scripts/claude-mem-hook-launcher.swift"', '--plugin-root', '"$_P"', ...codexFlag, '--', ...tail,
+    '; else',
+    ...fallbackPrefix, ...ccTrailing(...tail),
+    '; fi',
+  ];
+};
 const claudeHook = (tail: string[], extra: Record<string, unknown> = {}) => buildShellCommand({
   host: 'claude-code', requireFile: 'bun-runner.js', requireFileSecondary: 'worker-service.cjs',
-  trailingCommand: ccTrailing(...tail), notFoundMessage: 'claude-mem: plugin scripts not found', ...extra,
+  trailingCommand: swiftDispatch(tail), notFoundMessage: 'claude-mem: plugin scripts not found', ...extra,
 });
 const codexHook = (tail: string[]) => buildShellCommand({
   host: 'codex-cli', requireFile: 'bun-runner.js', requireFileSecondary: 'worker-service.cjs',
-  trailingCommand: ccTrailing(...tail), notFoundMessage: 'claude-mem: plugin scripts not found',
-  extraEnv: { CLAUDE_MEM_CODEX_HOOK: '1' },
+  trailingCommand: swiftDispatch(tail, { codexHook: true }), notFoundMessage: 'claude-mem: plugin scripts not found',
 });
 const codexStartupHook = () => buildShellCommand({
   host: 'codex-cli', requireFile: 'bun-runner.js', requireFileSecondary: 'worker-service.cjs',
