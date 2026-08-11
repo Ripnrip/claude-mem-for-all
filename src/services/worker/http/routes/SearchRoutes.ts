@@ -98,11 +98,19 @@ export class SearchRoutes extends BaseRouteHandler {
     projects: string[],
     platformSource?: string,
   ): boolean {
-    const cacheKey = platformSource ? `${platformSource}\0${projects.join('\0')}` : projects.join('\0');
+    // BIN-281: The welcome gate must NOT filter by platformSource. In a shared
+    // memory fork, any agent should see observations from any other agent.
+    // Platform-specific filtering belongs in context generation, not in the
+    // "does this project have any memory at all?" check that gates the welcome
+    // banner. Filtering here caused the "virgin project" lie when Codex wrote
+    // observations and Claude tried to read them (or vice versa).
+    const cacheKey = projects.join('\0');
     if (this.projectsKnownNonEmpty.has(cacheKey)) {
       return true;
     }
-    const observationCount = countObservationsByProjects(sessionStore, projects, platformSource);
+
+    // Primary check: exact project names, NO platformSource filter.
+    const observationCount = countObservationsByProjects(sessionStore, projects);
     if (observationCount > 0) {
       this.projectsKnownNonEmpty.add(cacheKey);
       return true;
@@ -117,15 +125,14 @@ export class SearchRoutes extends BaseRouteHandler {
       .filter((p, i, arr) => arr.indexOf(p) === i); // dedupe
     const hasComposites = baseProjects.length !== projects.length;
     if (hasComposites) {
-      const baseCount = countObservationsByProjects(sessionStore, baseProjects, platformSource);
+      const baseCount = countObservationsByProjects(sessionStore, baseProjects);
       if (baseCount > 0) {
         logger.info(
           'HTTP',
-          'Context inject: observations found under parent project name (worktree composite mismatch)',
+          'Context inject: observations found under parent project name (worktree composite fallback)',
           {
             queriedProjects: projects,
             fallbackProjects: baseProjects,
-            platformSource,
             observationCount: baseCount,
           },
         );
@@ -134,30 +141,13 @@ export class SearchRoutes extends BaseRouteHandler {
       }
     }
 
-    // BIN-282: Diagnostic logging — when observations exist under a different
-    // platformSource, log at warn so the mismatch is visible instead of
-    // silently returning the welcome banner.
-    if (platformSource) {
-      const countWithoutFilter = countObservationsByProjects(sessionStore, projects);
-      if (countWithoutFilter > 0) {
-        logger.warn(
-          'HTTP',
-          'Context inject: observations exist but platformSource filter excluded them',
-          {
-            projects,
-            queriedPlatformSource: platformSource,
-            observationCountWithoutFilter: countWithoutFilter,
-            observationCountWithFilter: observationCount,
-          },
-        );
-      } else {
-        logger.debug(
-          'HTTP',
-          'Context inject: no observations for any platformSource',
-          { projects },
-        );
-      }
-    }
+    // If we get here, the project genuinely has no observations from any
+    // platform. Log at debug so the virgin state is still diagnosable.
+    logger.debug(
+      'HTTP',
+      'Context inject: no observations found for project names (true virgin state)',
+      { projects, platformSource },
+    );
 
     return false;
   }
