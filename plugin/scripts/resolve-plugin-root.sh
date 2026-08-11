@@ -72,7 +72,10 @@ _P=$({
     _F=1
     printf '%s\n' "$_Q"
   }
-done)
+done) || true
+# Codex PR#10 P2: the while-read pipeline's final read returns 1 at EOF.
+# Under caller's `set -e`, this kills the shell even on successful match.
+# Guard with `|| true` so only the explicit exit 1 below propagates.
 
 if [ -z "$_P" ]; then
   echo "claude-mem: plugin scripts not found" >&2
