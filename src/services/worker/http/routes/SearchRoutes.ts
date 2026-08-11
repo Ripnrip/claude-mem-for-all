@@ -107,6 +107,32 @@ export class SearchRoutes extends BaseRouteHandler {
       this.projectsKnownNonEmpty.add(cacheKey);
       return true;
     }
+
+    // Diagnostic: when observations exist under a different platformSource,
+    // log at warn so the mismatch is visible instead of silently returning
+    // the welcome banner. This is the "virgin project lie" fix.
+    if (platformSource) {
+      const countWithoutFilter = countObservationsByProjects(sessionStore, projects);
+      if (countWithoutFilter > 0) {
+        logger.warn(
+          'HTTP',
+          'Context inject: observations exist but platformSource filter excluded them',
+          {
+            projects,
+            queriedPlatformSource: platformSource,
+            observationCountWithoutFilter: countWithoutFilter,
+            observationCountWithFilter: observationCount,
+          },
+        );
+      } else {
+        logger.debug(
+          'HTTP',
+          'Context inject: no observations for any platformSource',
+          { projects },
+        );
+      }
+    }
+
     return false;
   }
 
