@@ -108,9 +108,35 @@ export class SearchRoutes extends BaseRouteHandler {
       return true;
     }
 
-    // Diagnostic: when observations exist under a different platformSource,
-    // log at warn so the mismatch is visible instead of silently returning
-    // the welcome banner. This is the "virgin project lie" fix.
+    // BIN-280: Fall back to broader matching when the exact project names
+    // fail. Worktree composites (parent/child) can mismatch between write
+    // and read paths when the cwd differs. Try matching with just the
+    // basename of each project (stripping any /composite suffix).
+    const baseProjects = projects
+      .map(p => p.includes('/') ? p.split('/')[0] : p)
+      .filter((p, i, arr) => arr.indexOf(p) === i); // dedupe
+    const hasComposites = baseProjects.length !== projects.length;
+    if (hasComposites) {
+      const baseCount = countObservationsByProjects(sessionStore, baseProjects, platformSource);
+      if (baseCount > 0) {
+        logger.info(
+          'HTTP',
+          'Context inject: observations found under parent project name (worktree composite mismatch)',
+          {
+            queriedProjects: projects,
+            fallbackProjects: baseProjects,
+            platformSource,
+            observationCount: baseCount,
+          },
+        );
+        this.projectsKnownNonEmpty.add(cacheKey);
+        return true;
+      }
+    }
+
+    // BIN-282: Diagnostic logging — when observations exist under a different
+    // platformSource, log at warn so the mismatch is visible instead of
+    // silently returning the welcome banner.
     if (platformSource) {
       const countWithoutFilter = countObservationsByProjects(sessionStore, projects);
       if (countWithoutFilter > 0) {
