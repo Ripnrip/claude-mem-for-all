@@ -24,6 +24,8 @@
 # Note: no `set -e` here — the while-read pipeline's final `read` returns
 # non-zero when the pipe closes, which under `set -e` would kill the script
 # even though resolution succeeded. Errors are handled explicitly below.
+# However, the CALLER may have `set -e` enabled (inherited errexit). To be
+# safe under inherited errexit, the pipeline assignment is guarded with `|| true`.
 
 # --- PATH recovery -----------------------------------------------------------
 # Hosts like Codex launch hooks with a minimal env that doesn't source
@@ -73,9 +75,6 @@ _P=$({
     printf '%s\n' "$_Q"
   }
 done) || true
-# Codex PR#10 P2: the while-read pipeline's final read returns 1 at EOF.
-# Under caller's `set -e`, this kills the shell even on successful match.
-# Guard with `|| true` so only the explicit exit 1 below propagates.
 
 if [ -z "$_P" ]; then
   echo "claude-mem: plugin scripts not found" >&2

@@ -46,6 +46,7 @@
     "plugin/scripts/*.js",
     "plugin/scripts/*.cjs",
     "plugin/scripts/*.sh",
+    "plugin/scripts/*.swift",
     "plugin/sqlite",
     "plugin/skills",
     "plugin/ui",

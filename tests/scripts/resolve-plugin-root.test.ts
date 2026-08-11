@@ -53,4 +53,22 @@ describe('resolve-plugin-root.sh (BIN-283)', () => {
     }
     expect(exitCode).toBe(1);
   });
+
+  it('survives inherited errexit (set -e) without killing the caller (Codex PR#10 P2)', () => {
+    // When the caller has `set -e` enabled, the pipeline's final `read`
+    // returns non-zero. The `|| true` guard on the assignment prevents
+    // errexit from killing the script even when resolution succeeded.
+    const result = execSync(
+      `CLAUDE_PLUGIN_ROOT="${join(process.cwd(), 'plugin')}" bash -ec 'source "${pluginPath}" && echo "OK:$CLAUDE_MEM_PLUGIN_ROOT"'`,
+      { encoding: 'utf-8', timeout: 5000 },
+    ).trim();
+    expect(result).toContain('OK:');
+    expect(result).toContain(join(process.cwd(), 'plugin'));
+  });
+
+  it('is included in the npm artifact via package.json files field (Codex PR#10 P2)', () => {
+    const pkg = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf-8'));
+    const files = pkg.files as string[];
+    expect(files).toContain('plugin/scripts/*.sh');
+  });
 });
