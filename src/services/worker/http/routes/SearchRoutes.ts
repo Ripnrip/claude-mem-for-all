@@ -72,9 +72,11 @@ export class SearchRoutes extends BaseRouteHandler {
   private readonly projectsKnownNonEmpty = new Set<string>();
   // Negative cache for projects confirmed to have no observations. Avoids
   // repeated COUNT(*) on the hot PostToolUse path when a project is truly empty.
-  // Cleared when a new observation is ingested (observation handler calls a
-  // cache-bust method, or the process simply restarts).
-  private readonly projectsKnownEmpty = new Set<string>();
+  // Bounded TTL so a newly-ingested observation is picked up within
+  // EMPTY_CACHE_TTL_MS without needing explicit invalidation wiring.
+  // (Codex PR#9 P1: permanent cache blocked new observations from being seen.)
+  private readonly projectsKnownEmpty = new Map<string, number>(); // key → timestamp
+  private static readonly EMPTY_CACHE_TTL_MS = 30_000;
 
   constructor(
     private searchManager: SearchManager,
@@ -109,8 +111,10 @@ export class SearchRoutes extends BaseRouteHandler {
     if (this.projectsKnownNonEmpty.has(cacheKey)) {
       return true;
     }
-    // Fast path: if we already confirmed this project set is empty, skip.
-    if (this.projectsKnownEmpty.has(cacheKey)) {
+    // Fast path: if we recently confirmed this project set is empty, skip.
+    // TTL-bounded so new observations are picked up within 30s.
+    const emptyAt = this.projectsKnownEmpty.get(cacheKey);
+    if (emptyAt !== undefined && Date.now() - emptyAt < SearchRoutes.EMPTY_CACHE_TTL_MS) {
       return false;
     }
 
@@ -148,7 +152,7 @@ export class SearchRoutes extends BaseRouteHandler {
 
     // BIN-282: Cache known-empty to avoid repeated COUNT(*) on hot path.
     // Codex PR#4 P2: without caching, every PostToolUse re-runs both queries.
-    this.projectsKnownEmpty.add(cacheKey);
+    this.projectsKnownEmpty.set(cacheKey, Date.now());
 
     logger.debug(
       'HTTP',

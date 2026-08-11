@@ -31,8 +31,11 @@ describe('Welcome gate source structure (BIN-280, BIN-281, BIN-282)', () => {
     expect(source).toContain('Do NOT pass platformSource to context generation');
   });
 
-  it('welcome gate has negative cache for known-empty projects (Codex PR#4 P2)', () => {
+  it('welcome gate has TTL-bounded negative cache for known-empty projects (Codex PR#4 P2, PR#9 P1)', () => {
     const source = readFileSync(sourcePath, 'utf-8');
     expect(source).toContain('projectsKnownEmpty');
+    // Must be a Map with TTL, NOT a permanent Set (Codex PR#9 P1)
+    expect(source).toContain('EMPTY_CACHE_TTL_MS');
+    expect(source).toContain('Date.now() - emptyAt');
   });
 });
