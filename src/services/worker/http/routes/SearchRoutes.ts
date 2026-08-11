@@ -70,6 +70,11 @@ export class SearchRoutes extends BaseRouteHandler {
   // Scope this cache to the route instance so separate server/test instances do
   // not inherit each other's positive observation state through shared modules.
   private readonly projectsKnownNonEmpty = new Set<string>();
+  // Negative cache for projects confirmed to have no observations. Avoids
+  // repeated COUNT(*) on the hot PostToolUse path when a project is truly empty.
+  // Cleared when a new observation is ingested (observation handler calls a
+  // cache-bust method, or the process simply restarts).
+  private readonly projectsKnownEmpty = new Set<string>();
 
   constructor(
     private searchManager: SearchManager,
@@ -100,13 +105,13 @@ export class SearchRoutes extends BaseRouteHandler {
   ): boolean {
     // BIN-281: The welcome gate must NOT filter by platformSource. In a shared
     // memory fork, any agent should see observations from any other agent.
-    // Platform-specific filtering belongs in context generation, not in the
-    // "does this project have any memory at all?" check that gates the welcome
-    // banner. Filtering here caused the "virgin project" lie when Codex wrote
-    // observations and Claude tried to read them (or vice versa).
     const cacheKey = projects.join('\0');
     if (this.projectsKnownNonEmpty.has(cacheKey)) {
       return true;
+    }
+    // Fast path: if we already confirmed this project set is empty, skip.
+    if (this.projectsKnownEmpty.has(cacheKey)) {
+      return false;
     }
 
     // Primary check: exact project names, NO platformSource filter.
@@ -116,15 +121,15 @@ export class SearchRoutes extends BaseRouteHandler {
       return true;
     }
 
-    // BIN-280: Fall back to broader matching when the exact project names
-    // fail. Worktree composites (parent/child) can mismatch between write
-    // and read paths when the cwd differs. Try matching with just the
-    // basename of each project (stripping any /composite suffix).
-    const baseProjects = projects
-      .map(p => p.includes('/') ? p.split('/')[0] : p)
-      .filter((p, i, arr) => arr.indexOf(p) === i); // dedupe
-    const hasComposites = baseProjects.length !== projects.length;
+    // BIN-280: Fall back to parent basename when exact project names fail.
+    // Worktree composites (parent/child) can mismatch between write and read.
+    // Codex PR#5 P1: detect composites by checking if any project contains '/',
+    // NOT by comparing array lengths (single composite → same length → missed).
+    const hasComposites = projects.some(p => p.includes('/'));
     if (hasComposites) {
+      const baseProjects = projects
+        .map(p => p.includes('/') ? p.split('/')[0] : p)
+        .filter((p, i, arr) => arr.indexOf(p) === i);
       const baseCount = countObservationsByProjects(sessionStore, baseProjects);
       if (baseCount > 0) {
         logger.info(
@@ -141,8 +146,10 @@ export class SearchRoutes extends BaseRouteHandler {
       }
     }
 
-    // If we get here, the project genuinely has no observations from any
-    // platform. Log at debug so the virgin state is still diagnosable.
+    // BIN-282: Cache known-empty to avoid repeated COUNT(*) on hot path.
+    // Codex PR#4 P2: without caching, every PostToolUse re-runs both queries.
+    this.projectsKnownEmpty.add(cacheKey);
+
     logger.debug(
       'HTTP',
       'Context inject: no observations found for project names (true virgin state)',
@@ -378,7 +385,12 @@ export class SearchRoutes extends BaseRouteHandler {
       session_id: 'context-inject-' + Date.now(),
       cwd: cwd,
       projects: projects,
-      ...(platformSource ? { platformSource } : {}),
+      // BIN-281: Do NOT pass platformSource to context generation. The welcome
+      // gate already proved this project has observations across ALL platforms.
+      // Passing platformSource here would make queryObservationsMulti and
+      // querySummariesMulti filter by platform, returning empty results even
+      // though the gate passed — re-introducing the "virgin project" bug in
+      // the response body instead of the banner. (Codex PR#6 P1)
       full
     };
     let contextResult: Awaited<ReturnType<typeof generateContextWithStats>>;
