@@ -68,15 +68,18 @@ function shellTemplateManifest(buildShellCommand, buildCodexWindowsCommand) {
   ];
   // On Darwin, prefer the typed Swift launcher for PATH recovery + plugin
   // validation + worker dispatch. Falls back to the inline node command on
-  // non-Darwin or when swift/the launcher file is unavailable.
+  // non-Darwin, when swift/the launcher file is unavailable, or when the
+  // launcher fails to compile/run (e.g. older Swift toolchain).
   const swiftDispatch = (tail, options = {}) => {
     const codexFlag = options.codexHook ? ['--codex-hook'] : [];
     const fallbackPrefix = options.codexHook ? ['CLAUDE_MEM_CODEX_HOOK=1'] : [];
+    const fallbackCmd = [...fallbackPrefix, ...ccTrailing(...tail)];
     return [
       'if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && command -v swift >/dev/null 2>&1 && [ -f "$_P/scripts/claude-mem-hook-launcher.swift" ]; then',
       '"$_P/scripts/claude-mem-hook-launcher.swift"', '--plugin-root', '"$_P"', ...codexFlag, '--', ...tail,
+      '|| { echo "claude-mem: swift launcher failed, falling back to node" >&2;', ...fallbackCmd, '; }',
       '; else',
-      ...fallbackPrefix, ...ccTrailing(...tail),
+      ...fallbackCmd,
       '; fi',
     ];
   };

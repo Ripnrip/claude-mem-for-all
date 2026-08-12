@@ -347,11 +347,13 @@ const ccTrailing = (...tail: string[]) => [
 const swiftDispatch = (tail: string[], options: { codexHook?: boolean } = {}) => {
   const codexFlag = options.codexHook ? ['--codex-hook'] : [];
   const fallbackPrefix = options.codexHook ? ['CLAUDE_MEM_CODEX_HOOK=1'] : [];
+  const fallbackCmd = [...fallbackPrefix, ...ccTrailing(...tail)];
   return [
     'if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && command -v swift >/dev/null 2>&1 && [ -f "$_P/scripts/claude-mem-hook-launcher.swift" ]; then',
     '"$_P/scripts/claude-mem-hook-launcher.swift"', '--plugin-root', '"$_P"', ...codexFlag, '--', ...tail,
+    `|| { echo "claude-mem: swift launcher failed, falling back to node" >&2;`, ...fallbackCmd, `; }`,
     '; else',
-    ...fallbackPrefix, ...ccTrailing(...tail),
+    ...fallbackCmd,
     '; fi',
   ];
 };

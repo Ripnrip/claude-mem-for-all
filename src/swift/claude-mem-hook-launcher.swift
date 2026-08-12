@@ -52,7 +52,7 @@ func parseArguments(_ args: [String]) throws -> LauncherConfig {
     index += 1
   }
 
-  guard let pluginRoot, !pluginRoot.isEmpty else {
+  guard let pluginRoot = pluginRoot, !pluginRoot.isEmpty else {
     throw LauncherError.usage("usage: claude-mem-hook-launcher.swift --plugin-root <path> [--codex-hook] -- <worker args>")
   }
   guard !workerArgs.isEmpty else {
