@@ -204,6 +204,10 @@ func configDir() -> String {
   if let cfg = env["CLAUDE_CONFIG_DIR"], !cfg.isEmpty {
     return cfg
   }
+  // Honor HOME from environment so sandboxed hooks / tests with custom HOME work correctly
+  if let home = env["HOME"], !home.isEmpty {
+    return home + "/.claude"
+  }
   return NSHomeDirectory() + "/.claude"
 }
 
