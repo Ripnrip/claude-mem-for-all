@@ -1,0 +1,172 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 540" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b0c10"/>
+      <stop offset="1" stop-color="#12141a"/>
+    </linearGradient>
+  </defs>
+  <rect width="820" height="540" fill="url(#bg)"/>
+  <text x="40" y="34" fill="#7ee787" font-size="17" font-weight="600">integration matrix — who talks to claude-mem-for-all, and how</text>
+  <text x="40" y="52" fill="#3d4453" font-size="11">rows = agents/entrypoints · columns = path, platform tag, when to use</text>
+
+  <!-- header -->
+  <g font-size="11" text-anchor="middle" fill="#e6edf3">
+    <rect x="40" y="78" width="150" height="22" rx="4" fill="#1f6feb" opacity="0.22" stroke="#1f6feb" stroke-width="1"/>
+    <text x="115" y="93">Agent / entrypoint</text>
+    <rect x="194" y="78" width="110" height="22" rx="4" fill="#1f6feb" opacity="0.22" stroke="#1f6feb" stroke-width="1"/>
+    <text x="249" y="93">Path into store</text>
+    <rect x="308" y="78" width="120" height="22" rx="4" fill="#1f6feb" opacity="0.22" stroke="#1f6feb" stroke-width="1"/>
+    <text x="368" y="93">platform_source</text>
+    <rect x="432" y="78" width="150" height="22" rx="4" fill="#1f6feb" opacity="0.22" stroke="#1f6feb" stroke-width="1"/>
+    <text x="507" y="93">When to use</text>
+    <rect x="586" y="78" width="190" height="22" rx="4" fill="#1f6feb" opacity="0.22" stroke="#1f6feb" stroke-width="1"/>
+    <text x="681" y="93">Notes / gotchas</text>
+  </g>
+  <line x1="40" y1="102" x2="776" y2="102" stroke="#3d4453" stroke-width="1"/>
+
+  <!-- row definitions: name, path, platform, when, notes -->
+  <g font-size="11">
+    <!-- Claude Code -->
+    <rect x="40" y="114" width="150" height="22" rx="4" fill="#1f6feb" opacity="0.12" stroke="#1f6feb" stroke-width="1"/>
+    <text x="115" y="129" fill="#e6edf3" text-anchor="middle">Claude Code</text>
+    <rect x="194" y="114" width="110" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="249" y="129" fill="#c9d1d9" text-anchor="middle">native hooks (auto)</text>
+    <rect x="308" y="114" width="120" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="368" y="129" fill="#c9d1d9" text-anchor="middle">claude (auto)</text>
+    <rect x="432" y="114" width="150" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="507" y="129" fill="#c9d1d9" text-anchor="middle">the default: claude-mem watches this session already</text>
+    <rect x="586" y="114" width="190" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="681" y="129" fill="#8b949e" text-anchor="middle">CLI only for learnings outside the tool-use stream</text>
+
+    <!-- Codex -->
+    <rect x="40" y="142" width="150" height="22" rx="4" fill="#1f6feb" opacity="0.12" stroke="#1f6feb" stroke-width="1"/>
+    <text x="115" y="157" fill="#e6edf3" text-anchor="middle">Codex</text>
+    <rect x="194" y="142" width="110" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="249" y="157" fill="#c9d1d9" text-anchor="middle">dual-hook SessionStart</text>
+    <rect x="308" y="142" width="120" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="368" y="157" fill="#c9d1d9" text-anchor="middle">codex (auto)</text>
+    <rect x="432" y="142" width="150" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="507" y="157" fill="#c9d1d9" text-anchor="middle">hooks already wired via fork (BIN-253/254)</text>
+    <rect x="586" y="142" width="190" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="681" y="157" fill="#8b949e" text-anchor="middle">same rule as Claude Code</text>
+
+    <!-- Cursor -->
+    <rect x="40" y="170" width="150" height="22" rx="4" fill="#1f6feb" opacity="0.12" stroke="#1f6feb" stroke-width="1"/>
+    <text x="115" y="185" fill="#e6edf3" text-anchor="middle">Cursor</text>
+    <rect x="194" y="170" width="110" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="249" y="185" fill="#c9d1d9" text-anchor="middle">cursor marketplace hooks</text>
+    <rect x="308" y="170" width="120" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="368" y="185" fill="#c9d1d9" text-anchor="middle">cursor (auto)</text>
+    <rect x="432" y="170" width="150" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="507" y="185" fill="#c9d1d9" text-anchor="middle">fork ships hooks, but still not every learning</text>
+    <rect x="586" y="170" width="190" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="681" y="185" fill="#8b949e" text-anchor="middle">CLI for post-session learnings</text>
+
+    <!-- Antigravity -->
+    <rect x="40" y="198" width="150" height="22" rx="4" fill="#1f6feb" opacity="0.12" stroke="#1f6feb" stroke-width="1"/>
+    <text x="115" y="213" fill="#e6edf3" text-anchor="middle">Antigravity</text>
+    <rect x="194" y="198" width="110" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="249" y="213" fill="#c9d1d9" text-anchor="middle">antigravity hooks</text>
+    <rect x="308" y="198" width="120" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="368" y="213" fill="#c9d1d9" text-anchor="middle">antigravity</text>
+    <rect x="432" y="198" width="150" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="507" y="213" fill="#c9d1d9" text-anchor="middle">Phase B support in fork</text>
+    <rect x="586" y="198" width="190" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="681" y="213" fill="#8b949e" text-anchor="middle">CLI for learnings beyond its hook contract</text>
+
+    <!-- Hermes -->
+    <rect x="40" y="226" width="150" height="22" rx="4" fill="#d29922" opacity="0.22" stroke="#d29922" stroke-width="1"/>
+    <text x="115" y="241" fill="#e6edf3" text-anchor="middle">Hermes</text>
+    <rect x="194" y="226" width="110" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="249" y="241" fill="#c9d1d9" text-anchor="middle">CLI (file form)</text>
+    <rect x="308" y="226" width="120" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="368" y="241" fill="#c9d1d9" text-anchor="middle">hermes</text>
+    <rect x="432" y="226" width="150" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="507" y="241" fill="#c9d1d9" text-anchor="middle">checkpoint note → knowledge sync → CLI</text>
+    <rect x="586" y="226" width="190" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="681" y="241" fill="#8b949e" text-anchor="middle">primary user of the file form</text>
+
+    <!-- pi -->
+    <rect x="40" y="254" width="150" height="22" rx="4" fill="#d29922" opacity="0.22" stroke="#d29922" stroke-width="1"/>
+    <text x="115" y="269" fill="#e6edf3" text-anchor="middle">pi</text>
+    <rect x="194" y="254" width="110" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="249" y="269" fill="#c9d1d9" text-anchor="middle">CLI (inline or file)</text>
+    <rect x="308" y="254" width="120" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="368" y="269" fill="#c9d1d9" text-anchor="middle">pi</text>
+    <rect x="432" y="254" width="150" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="507" y="269" fill="#c9d1d9" text-anchor="middle">no hook contract yet — CLI is the path</text>
+    <rect x="586" y="254" width="190" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="681" y="269" fill="#8b949e" text-anchor="middle">pass --platform pi always</text>
+
+    <!-- Aider -->
+    <rect x="40" y="282" width="150" height="22" rx="4" fill="#d29922" opacity="0.22" stroke="#d29922" stroke-width="1"/>
+    <text x="115" y="297" fill="#e6edf3" text-anchor="middle">Aider</text>
+    <rect x="194" y="282" width="110" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="249" y="297" fill="#c9d1d9" text-anchor="middle">CLI (inline)</text>
+    <rect x="308" y="282" width="120" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="368" y="297" fill="#c9d1d9" text-anchor="middle">aider</text>
+    <rect x="432" y="282" width="150" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="507" y="297" fill="#c9d1d9" text-anchor="middle">post-session, if a learning is worth keeping</text>
+    <rect x="586" y="282" width="190" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="681" y="297" fill="#8b949e" text-anchor="middle">scriptable — wire at end of session</text>
+
+    <!-- scripts / cron -->
+    <rect x="40" y="310" width="150" height="22" rx="4" fill="#a371f7" opacity="0.22" stroke="#a371f7" stroke-width="1"/>
+    <text x="115" y="325" fill="#e6edf3" text-anchor="middle">scripts / cron</text>
+    <rect x="194" y="310" width="110" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="249" y="325" fill="#c9d1d9" text-anchor="middle">CLI (file or inline)</text>
+    <rect x="308" y="310" width="120" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="368" y="325" fill="#c9d1d9" text-anchor="middle">cron / build / deploy /</text>
+    <text x="368" y="337" fill="#c9d1d9" text-anchor="middle">whatever ran it</text>
+    <rect x="432" y="310" width="150" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="507" y="325" fill="#c9d1d9" text-anchor="middle">idempotent by design — run every hour, store learns once</text>
+    <rect x="586" y="310" width="190" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="681" y="325" fill="#8b949e" text-anchor="middle">designed for this case</text>
+
+    <!-- hand-written note -->
+    <rect x="40" y="338" width="150" height="22" rx="4" fill="#a371f7" opacity="0.22" stroke="#a371f7" stroke-width="1"/>
+    <text x="115" y="353" fill="#e6edf3" text-anchor="middle">hand-written note</text>
+    <rect x="194" y="338" width="110" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="249" y="353" fill="#c9d1d9" text-anchor="middle">CLI (file form)</text>
+    <rect x="308" y="338" width="120" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="368" y="353" fill="#c9d1d9" text-anchor="middle">you / manual</text>
+    <rect x="432" y="338" width="150" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="507" y="353" fill="#c9d1d9" text-anchor="middle">the original use case: a note, filed into the store</text>
+    <rect x="586" y="338" width="190" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="681" y="353" fill="#8b949e" text-anchor="middle">no agent needed at all</text>
+
+    <!-- HTTP API -->
+    <rect x="40" y="366" width="150" height="22" rx="4" fill="#388bfd" opacity="0.12" stroke="#388bfd" stroke-width="1"/>
+    <text x="115" y="381" fill="#e6edf3" text-anchor="middle">any agent (HTTP)</text>
+    <rect x="194" y="366" width="110" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="249" y="381" fill="#c9d1d9" text-anchor="middle">POST /v1/memories</text>
+    <rect x="308" y="366" width="120" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="368" y="381" fill="#c9d1d9" text-anchor="middle">honest if flag on</text>
+    <rect x="432" y="366" width="150" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="507" y="381" fill="#c9d1d9" text-anchor="middle">throwaway one-liner, not a durable bridge</text>
+    <rect x="586" y="366" width="190" height="22" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="681" y="381" fill="#8b949e" text-anchor="middle">metadata defaults to claude if flag off</text>
+  </g>
+
+  <!-- legend -->
+  <g font-size="11">
+    <rect x="40" y="404" width="12" height="12" rx="3" fill="#1f6feb" opacity="0.3" stroke="#1f6feb" stroke-width="1"/>
+    <text x="58" y="413" fill="#c9d1d9">hooks-closed (auto-watched)</text>
+    <rect x="240" y="404" width="12" height="12" rx="3" fill="#d29922" opacity="0.35" stroke="#d29922" stroke-width="1"/>
+    <text x="258" y="413" fill="#c9d1d9">hooks-open / external (CLI path)</text>
+    <rect x="460" y="404" width="12" height="12" rx="3" fill="#a371f7" opacity="0.35" stroke="#a371f7" stroke-width="1"/>
+    <text x="478" y="413" fill="#c9d1d9">scripts / cron / manual</text>
+    <rect x="650" y="404" width="12" height="12" rx="3" fill="#388bfd" opacity="0.25" stroke="#388bfd" stroke-width="1"/>
+    <text x="668" y="413" fill="#c9d1d9">HTTP API (throwaway, not durable)</text>
+  </g>
+
+  <!-- footnotes -->
+  <g font-size="10" fill="#8b949e">
+    <text x="40" y="432">platform_source is the provenance contract — set it honestly, every time. known aliases (claude, codex, cursor) are normalized automatically.</text>
+    <text x="40" y="447">CLAUDE_MEM_ALLOW_ANY_AGENT (default true) preserves unknown agents' own identity; if disabled, unknown → claude. keep it on.</text>
+    <text x="40" y="462">dedup key = content_hash (UUIDv5(session + title)). same agent + same title = no-op. different agent + same title = two rows (correct — two learnings).</text>
+    <text x="40" y="477">the CLI is the durable bridge. the HTTP API is the throwaway one. pick by job, not by preference. pick one source of truth per learning.</text>
+    <text x="40" y="492">verify after wiring: sqlite3 ~/.claude-mem/claude-mem.db "SELECT id, platform_source, title FROM observations WHERE title LIKE '%<slug>%' LIMIT 1"</text>
+    <text x="40" y="507">FTS is immediate; the API search ranking may lag. DB query is ground truth, not the search UI.</text>
+  </g>
+</svg>

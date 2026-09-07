@@ -66,14 +66,15 @@
 > - **`claude-mem-for-all` CLI** — idempotent Swift bridge that writes any
 >   session's checkpoint note into claude-mem's SQLite store, provenance-tagged
 >   with `platform_source` (`pi`, `hermes`, …). Source:
->   [`tools/claude-mem-for-all.swift`](tools/claude-mem-for-all.swift) (canonical
->   copy in the multibrain repo).
+>   [`tools/claude-mem-for-all.swift`](tools/claude-mem-for-all.swift). Docs:
+>   [Why Swift](docs/why-swift.md) · [Key Differences](docs/key-differences.md) ·
+>   [Integration Guide](docs/integration.md).
+> - **Diagrams:** [Architecture](diagrams/architecture.svg) ·
+>   [Data Flow](diagrams/data-flow.svg) · [Integration Matrix](diagrams/integration-matrix.svg).
 > - **Swift hook launcher (BIN-283)** — Darwin dispatch for plugin hooks with
 >   node fallback, replacing anonymous interpreter processes.
 > - **Dual-hook Codex SessionStart (BIN-253/254)** — worker bootstrap + memory
 >   injection as separate hooks, version-check gate removed.
-> - Docs: [Universal Memory](docs/public/universal-memory.mdx) ·
->   [Agent Connect](docs/public/universal-memory.mdx)
 >
 > Synced with upstream `main` through the v13.24.1 line; upstream features
 > (Cursor/Grok-bot marketplaces, Observation TV, cmem-pro-headless docs) merged
@@ -257,7 +258,11 @@ The installer handles dependencies, plugin setup, AI provider configuration, wor
 - **[Database](https://docs.claude-mem.ai/architecture/database)** - SQLite schema & FTS5 search
 - **[Search Architecture](https://docs.claude-mem.ai/architecture/search-architecture)** - Hybrid search with Chroma vector database
 
-### Configuration & Development
+### For this fork
+
+- **[Why Swift](docs/why-swift.md)** — why claude-mem-for-all is a Swift CLI and when Python/bash/curl would actually be the right call
+- **[Key Differences](docs/key-differences.md)** — vs upstream claude-mem, vs a Python bridge, vs a curl one-liner, vs writing SQLite yourself
+- **[Integration Guide](docs/integration.md)** — per-agent recipes: Claude Code, Codex, Cursor, Antigravity, Hermes, pi, Aider, scripts/cron, hand-written notes, the HTTP API (throwaway only)
 
 - **[Configuration](https://docs.claude-mem.ai/configuration)** - Environment variables & settings
 - **[Development](https://docs.claude-mem.ai/development)** - Building, testing, contributing
@@ -278,6 +283,13 @@ The installer handles dependencies, plugin setup, AI provider configuration, wor
 6. **Chroma Vector Database** - Hybrid semantic + keyword search for intelligent context retrieval
 
 See [Architecture Overview](https://docs.claude-mem.ai/architecture/overview) for details.
+
+**For this fork:** a separate bridge layer — the `claude-mem-for-all` CLI — lets any
+agent deposit learnings directly into the same SQLite store that claude-mem's own hooks
+watch. [Data Flow](diagrams/data-flow.svg) shows the per-deposit path; [Integration
+Guide](docs/integration.md) is the per-agent recipe. The store's provenance story
+(`platform_source`, `agent_type`) is the point — every learning stays attributed to the
+agent that produced it, not collapsed into `claude` just because it landed in the same DB.
 
 ---
 
