@@ -58,6 +58,27 @@
 
 <h4 align="center"><a href="https://grok-mem.ai">Grok Mem</a> is how Grok Bots remember. Sits next to Grok's own memory. Does not replace it.</h4>
 
+> ### 🔀 Ripnrip fork — claude-mem **for all agents**
+> This fork extends upstream with cross-agent memory: any agent (Claude Code,
+> Codex, Cursor, Antigravity, Hermes, pi, or a plain shell script) can deposit
+> and recall learnings from the same claude-mem store.
+>
+> - **`claude-mem-for-all` CLI** — idempotent Swift bridge that writes any
+>   session's checkpoint note into claude-mem's SQLite store, provenance-tagged
+>   with `platform_source` (`pi`, `hermes`, …). Source:
+>   [`tools/claude-mem-for-all.swift`](tools/claude-mem-for-all.swift) (canonical
+>   copy in the multibrain repo).
+> - **Swift hook launcher (BIN-283)** — Darwin dispatch for plugin hooks with
+>   node fallback, replacing anonymous interpreter processes.
+> - **Dual-hook Codex SessionStart (BIN-253/254)** — worker bootstrap + memory
+>   injection as separate hooks, version-check gate removed.
+> - Docs: [Universal Memory](docs/public/universal-memory.mdx) ·
+>   [Agent Connect](docs/public/universal-memory.mdx)
+>
+> Synced with upstream `main` through the v13.24.1 line; upstream features
+> (Cursor/Grok-bot marketplaces, Observation TV, cmem-pro-headless docs) merged
+> intact.
+
 <p align="center">
   <a href="https://grok-mem.ai">
     <img src="https://img.shields.io/badge/Grok%20mem-1A1A1A?style=for-the-badge" alt="Grok mem">
