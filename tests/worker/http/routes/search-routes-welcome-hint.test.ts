@@ -259,7 +259,7 @@ describe('SearchRoutes Welcome Hint', () => {
     );
   });
 
-  it('threads normalized platformSource into observation count and context generation', async () => {
+  it('does not filter the welcome gate or context generation by platformSource (BIN-281)', async () => {
     countQueryStub = mock(() => ({ count: 2 }));
     prepareStub = mock(() => ({ get: countQueryStub }));
     mockSessionStore = { db: { prepare: prepareStub } };
@@ -278,21 +278,30 @@ describe('SearchRoutes Welcome Hint', () => {
     handler(req, res as unknown as Response);
     await new Promise(resolve => setImmediate(resolve));
 
+    // BIN-281: the welcome gate must not filter by platformSource — a shared
+    // memory store means any agent should see observations from any other
+    // agent. The query receives no platform filter even when the request
+    // carries a normalized platform_source from query, body, or header.
     expect(countQueryStub).toHaveBeenCalledWith(
       '/path/parent',
       '/path/worktree',
       '/path/parent',
       '/path/worktree',
-      'cursor',
-      'cursor',
+      null,
+      null,
     );
+    // Context generation likewise must NOT receive platformSource: filtering
+    // there re-introduces the "virgin project" bug in the response body
+    // (Codex PR#6 P1).
     expect(generateContextStub).toHaveBeenCalledWith(
       expect.objectContaining({
         projects: ['/path/parent', '/path/worktree'],
-        platformSource: 'cursor',
+        full: false,
       }),
       false,
     );
+    const injectRequest = generateContextStub.mock.calls[0][0] as Record<string, unknown>;
+    expect('platformSource' in injectRequest).toBe(false);
   });
 
   it('does not leak positive observation state across route instances', async () => {
