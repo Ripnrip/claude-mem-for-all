@@ -56,7 +56,7 @@
   <a href="docs/i18n/README.no.md">🇳🇴 Norsk</a>
 </p>
 
-<h4 align="center"><a href="https://grok-mem.ai">Grok Mem</a> is how Grok Bots remember. Sits next to Grok's own memory. Does not replace it.</h4>
+<h4 align="center">Persistent memory compression system — extended in this fork to work with <b>every</b> coding agent.</h4>
 
 > ### 🔀 Ripnrip fork — claude-mem **for all agents**
 > This fork extends upstream with cross-agent memory: any agent (Claude Code,
@@ -76,15 +76,9 @@
 > - **Dual-hook Codex SessionStart (BIN-253/254)** — worker bootstrap + memory
 >   injection as separate hooks, version-check gate removed.
 >
-> Synced with upstream `main` through the v13.24.1 line; upstream features
+> Synced with upstream `main` through the v13.24.9 line; upstream features
 > (Cursor/Grok-bot marketplaces, Observation TV, cmem-pro-headless docs) merged
 > intact.
-
-<p align="center">
-  <a href="https://grok-mem.ai">
-    <img src="https://img.shields.io/badge/Grok%20mem-1A1A1A?style=for-the-badge" alt="Grok mem">
-  </a>
-</p>
 
 <p align="center">
   <a href="LICENSE">
