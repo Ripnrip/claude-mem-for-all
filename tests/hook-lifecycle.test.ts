@@ -368,10 +368,13 @@ describe('Cursor IDE Compatibility (#838, #1049)', () => {
   });
 
   describe('cursorAdapter formatOutput', () => {
-    it('should return simple continue flag', async () => {
+    it('should return simple continue flag (suppressOutput passes through for Cursor)', async () => {
       const { cursorAdapter } = await import('../src/cli/adapters/cursor.js');
       const output = cursorAdapter.formatOutput({ continue: true, suppressOutput: true });
-      expect(output).toEqual({ continue: true });
+      // Fork behavior (see tests/cli/cursor-adapter.test.ts "passes through
+      // suppressOutput"): Cursor reads suppressOutput to keep hook output out
+      // of the transcript, so formatOutput forwards it instead of stripping.
+      expect(output).toEqual({ continue: true, suppressOutput: true });
     });
 
     it('should default continue to true', async () => {
