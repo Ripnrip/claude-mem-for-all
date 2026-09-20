@@ -137,6 +137,12 @@ jobs:
         with:
           enable-cache: true
           cache-python: true
+          # The post-step `uv cache prune --ci` exits 2 on this repo's Windows
+          # runners (locked cache files after the chroma lifecycle tests leave
+          # their sidecar chains), turning green test runs red. Pruning is
+          # cache maintenance, not correctness — skip it and let GitHub's
+          # cache eviction handle size.
+          prune-cache: false
 
       - run: npm install --no-audit --no-fund
 
