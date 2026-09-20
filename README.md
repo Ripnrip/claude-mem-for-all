@@ -76,7 +76,7 @@
 > - **Dual-hook Codex SessionStart (BIN-253/254)** — worker bootstrap + memory
 >   injection as separate hooks, version-check gate removed.
 >
-> Synced with upstream `main` through the v13.24.9 line; upstream features
+> Synced with upstream `main` through the v13.25.2 line; upstream features
 > (Cursor/Grok-bot marketplaces, Observation TV, cmem-pro-headless docs) merged
 > intact.
 
