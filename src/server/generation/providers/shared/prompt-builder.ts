@@ -88,6 +88,12 @@ export function buildServerGenerationPrompt(
     'recording (e.g., everything was scrubbed by privacy filters or the',
     'activity was trivial), return a single self-closing <skip_summary />',
     'tag and nothing else. Do not include any prose outside the XML.',
+    // Prompt-side guard for the parser fallback (src/sdk/parser.ts): when the
+    // model omits <type>, the parser defaults to validTypes[0] ("bugfix") and
+    // the observation is misfiled. Pin the requirement in prose so the schema
+    // alone can't be read as optional.
+    'Every <observation> block MUST include a <type> element containing',
+    'exactly one value from the allowed list in the schema below.',
     '',
     'Schema for each <observation> block:',
     observationOutputSchema,
